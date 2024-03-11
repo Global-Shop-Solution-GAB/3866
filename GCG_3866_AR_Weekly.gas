@@ -1,0 +1,582 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Variable.UDT.uAR.Define("Customer",String)
+Variable.UDT.uAR.Define("Invoice",String)
+Variable.UDT.uAR.Define("Invoice_Date",Date)
+Variable.UDT.uAR.Define("Due_Date",Date)
+Variable.UDT.uAR.Define("Cur_Week",Float)
+Variable.UDT.uAR.Define("1Week",Float)
+Variable.UDT.uAR.Define("2Week",Float)
+Variable.UDT.uAR.Define("3Week",Float)
+Variable.UDT.uAR.Define("4Week",Float)
+Variable.UDT.uAR.Define("5Week",Float)
+Variable.UDT.uAR.Define("Terms_Code",String)
+Variable.uGlobal.uAR.Declare("uAR")
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.ODBC.Connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass,3500)
+
+F.Intrinsic.Control.CallSub(Loadudt)
+F.Intrinsic.Control.CallSub(Loadrst)
+F.Intrinsic.Control.CallSub(Callbi)
+F.Intrinsic.Control.CallSub(Unload)
+
+Program.Sub.Main.End
+
+Program.Sub.Unload.Start
+F.ODBC.Connection!con.Close
+F.Intrinsic.Control.End
+
+Program.Sub.Unload.End
+
+Program.Sub.LoadUDT.Start
+F.Intrinsic.Control.SetErrorHandler("LoadUDT_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSql.Declare(String)
+V.Local.dStart.Declare(Date)
+V.Local.dStop.Declare(Date)
+V.Local.iUB.Declare(Long)
+V.Local.dNullDate.Declare(Date)
+V.Local.fTotalChk.Declare(Float)
+
+V.uGlobal.uAR.Redim(-1,-1)
+F.Intrinsic.UI.InvokeWaitDialog("Please wait while report is generated.","AR Weekly Report")
+
+V.Local.dStop.Set(V.Ambient.Date)
+F.Intrinsic.Date.DateSerial(1900,1,1,V.Local.dNullDate)
+F.Intrinsic.Date.DateAdd("D",-6,V.Local.dStop,V.Local.dStart)
+
+F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, DATE_TRANSACTION , AMT_TRANS_TOTAL from V_AR_HISTORY where BATCH_CODE = 11 and DATE_TRANSACTION between '",V.Local.dStart.PervasiveDate,"' and '",V.Local.dStop.PervasiveDate,"'",V.Local.sSql)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSql)
+F.Intrinsic.Control.DoUntil(V.ODBC.con!rst.EOF,=,True)
+	F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+		V.uGlobal.uAR.Redim(0,0)
+		V.Local.iUB.Set(0)
+	F.Intrinsic.Control.Else
+		V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+		F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+	F.Intrinsic.Control.EndIf
+	V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+	V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+	V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+	V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+	V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DATE_TRANSACTION)
+	V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(V.ODBC.con!rst.FieldValFloat!AMT_TRANS_TOTAL)
+	V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set("")
+	V.uGlobal.uAR(V.Local.iUB)!1Week.Set(0)
+	V.uGlobal.uAR(V.Local.iUB)!2Week.Set(0)
+	V.uGlobal.uAR(V.Local.iUB)!3Week.Set(0)
+	V.uGlobal.uAR(V.Local.iUB)!4Week.Set(0)
+	V.uGlobal.uAR(V.Local.iUB)!5Week.Set(0)
+	F.ODBC.con!rst.MoveNext
+F.Intrinsic.Control.Loop
+F.ODBC.con!rst.Close
+
+'Getting current week invoices paid out of AR Open Items
+F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, AMT_TRANS_TOTAL, DATE_TRANSACTION, DUE_DATE,TERMS_CODE from V_AR_OPEN_ITEMS where BATCH_CODE = 11 and DATE_TRANSACTION between '",V.Local.dStart.PervasiveDate,"' and '",V.Local.dStop.PervasiveDate,"'",V.Local.sSql)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSql)
+F.Intrinsic.Control.DoUntil(V.ODBC.con!rst.EOF,=,True)
+	F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+		V.uGlobal.uAR.Redim(0,0)
+		V.Local.iUB.Set(0)
+	F.Intrinsic.Control.Else
+		V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+		F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+	F.Intrinsic.Control.EndIf
+	F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+	V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+	V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+	V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+	V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+	V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DATE_TRANSACTION)
+	V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(V.ODBC.con!rst.FieldValFloat!AMT_TRANS_TOTAL)
+	V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set(V.ODBC.con!rst.FieldValTrim!TERMS_CODE)
+	V.uGlobal.uAR(V.Local.iUB)!1Week.Set(0)
+	V.uGlobal.uAR(V.Local.iUB)!2Week.Set(0)
+	V.uGlobal.uAR(V.Local.iUB)!3Week.Set(0)
+	V.uGlobal.uAR(V.Local.iUB)!4Week.Set(0)
+	V.uGlobal.uAR(V.Local.iUB)!5Week.Set(0)
+	F.ODBC.con!rst.MoveNext
+F.Intrinsic.Control.Loop
+F.ODBC.con!rst.Close
+'Calculating next 1 week invoices
+V.Local.dStart.Set(V.Ambient.Date)
+F.Intrinsic.Date.DateAdd("D",6,V.Ambient.Date,V.Local.dStop)
+
+F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, AMT_TRANS_TOTAL, AMT_INVOICE, DUE_DATE, BATCH_CODE, BATCH_LINE, BATCH_NUM, TERMS_CODE from V_AR_OPEN_ITEMS where BATCH_CODE = 10 and DUE_DATE between '",V.Local.dStart.PervasiveDate,"' and '",V.Local.dStop.PervasiveDate,"'",V.Local.sSql)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSql)
+F.Intrinsic.Control.DoUntil(V.ODBC.con!rst.EOF,=,True)
+	V.Local.fTotalChk.Set(0)
+	F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, AMT_TRANS_TOTAL, AMT_INVOICE, DUE_DATE from V_AR_OPEN_ITEMS where BATCH_CODE in (11,12, 13, 16) and CUSTOMER = '",V.ODBC.con!rst.FieldValTrim!CUSTOMER,"' and INVOICE = '",V.ODBC.con!rst.FieldValTrim!INVOICE,"'",V.Local.sSql)
+	F.ODBC.Connection!con.OpenLocalRecordsetRO("rstChk",V.Local.sSql)
+	F.Intrinsic.Control.DoUntil(V.ODBC.con!rstChk.EOF,=,True)
+		F.Intrinsic.Math.Add(V.Local.fTotalChk,V.ODBC.con!rstChk.FieldValFloat!AMT_INVOICE,V.Local.fTotalChk)
+		F.ODBC.con!rstChk.MoveNext
+	F.Intrinsic.Control.Loop
+	F.ODBC.con!rstChk.Close
+	F.Intrinsic.Control.If(V.Local.fTotalChk,=,0)
+			F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+				V.uGlobal.uAR.Redim(0,0)
+				V.Local.iUB.Set(0)
+			F.Intrinsic.Control.Else
+				V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+				F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+			V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DUE_DATE)
+			V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set(V.ODBC.con!rst.FieldValTrim!TERMS_CODE)
+			V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!1Week.Set(V.ODBC.con!rst.FieldValFloat!AMT_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!2Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!3Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!4Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!5Week.Set(0)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.Math.Add(V.ODBC.con!rst.FieldValFloat!AMT_TRANS_TOTAL,V.Local.fTotalChk,V.Local.fTotalChk)
+		F.Intrinsic.Control.If(V.Local.fTotalChk,>,0)
+			F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+				V.uGlobal.uAR.Redim(0,0)
+				V.Local.iUB.Set(0)
+			F.Intrinsic.Control.Else
+				V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+				F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+			V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DUE_DATE)
+			V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set(V.ODBC.con!rst.FieldValTrim!TERMS_CODE)
+			V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!1Week.Set(V.Local.fTotalChk)
+			V.uGlobal.uAR(V.Local.iUB)!2Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!3Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!4Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!5Week.Set(0)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+	F.ODBC.con!rst.MoveNext
+F.Intrinsic.Control.Loop
+F.ODBC.con!rst.Close
+'Calculating 2 week invoices
+F.Intrinsic.Date.DateAdd("D",7,V.Ambient.Date,V.Local.dStart)
+F.Intrinsic.Date.DateAdd("D",6,V.Local.dStart,V.Local.dStop)
+
+F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, AMT_TRANS_TOTAL, AMT_INVOICE, DUE_DATE, BATCH_CODE, BATCH_LINE, BATCH_NUM,TERMS_CODE from V_AR_OPEN_ITEMS where BATCH_CODE = 10 and DUE_DATE between '",V.Local.dStart.PervasiveDate,"' and '",V.Local.dStop.PervasiveDate,"'",V.Local.sSql)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSql)
+F.Intrinsic.Control.DoUntil(V.ODBC.con!rst.EOF,=,True)
+	V.Local.fTotalChk.Set(0)
+	F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, AMT_TRANS_TOTAL, AMT_INVOICE, DUE_DATE from V_AR_OPEN_ITEMS where BATCH_CODE in (11,12, 13, 16) and CUSTOMER = '",V.ODBC.con!rst.FieldValTrim!CUSTOMER,"' and INVOICE = '",V.ODBC.con!rst.FieldValTrim!INVOICE,"'",V.Local.sSql)
+	F.ODBC.Connection!con.OpenLocalRecordsetRO("rstChk",V.Local.sSql)
+	F.Intrinsic.Control.DoUntil(V.ODBC.con!rstChk.EOF,=,True)
+		F.Intrinsic.Math.Add(V.Local.fTotalChk,V.ODBC.con!rstChk.FieldValFloat!AMT_INVOICE,V.Local.fTotalChk)
+		F.ODBC.con!rstChk.MoveNext
+	F.Intrinsic.Control.Loop
+	F.ODBC.con!rstChk.Close
+	F.Intrinsic.Control.If(V.Local.fTotalChk,=,0)
+			F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+				V.uGlobal.uAR.Redim(0,0)
+				V.Local.iUB.Set(0)
+			F.Intrinsic.Control.Else
+				V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+				F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+			V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DUE_DATE)
+			V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set(V.ODBC.con!rst.FieldValTrim!TERMS_CODE)
+			V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!1Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!2Week.Set(V.ODBC.con!rst.FieldValFloat!AMT_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!3Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!4Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!5Week.Set(0)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.Math.Add(V.ODBC.con!rst.FieldValFloat!AMT_TRANS_TOTAL,V.Local.fTotalChk,V.Local.fTotalChk)
+		F.Intrinsic.Control.If(V.Local.fTotalChk,>,0)
+			F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+				V.uGlobal.uAR.Redim(0,0)
+				V.Local.iUB.Set(0)
+			F.Intrinsic.Control.Else
+				V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+				F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+			V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DUE_DATE)
+			V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set(V.ODBC.con!rst.FieldValTrim!TERMS_CODE)
+			V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!1Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!2Week.Set(V.Local.fTotalChk)
+			V.uGlobal.uAR(V.Local.iUB)!3Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!4Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!5Week.Set(0)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+	F.ODBC.con!rst.MoveNext
+F.Intrinsic.Control.Loop
+F.ODBC.con!rst.Close
+'Calculating 3 week invoices
+F.Intrinsic.Date.DateAdd("D",14,V.Ambient.Date,V.Local.dStart)
+F.Intrinsic.Date.DateAdd("D",6,V.Local.dStart,V.Local.dStop)
+
+F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, AMT_TRANS_TOTAL, AMT_INVOICE, DUE_DATE, BATCH_CODE, BATCH_LINE, BATCH_NUM,TERMS_CODE from V_AR_OPEN_ITEMS where BATCH_CODE = 10 and DUE_DATE between '",V.Local.dStart.PervasiveDate,"' and '",V.Local.dStop.PervasiveDate,"'",V.Local.sSql)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSql)
+F.Intrinsic.Control.DoUntil(V.ODBC.con!rst.EOF,=,True)
+	V.Local.fTotalChk.Set(0)
+	F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, AMT_TRANS_TOTAL, AMT_INVOICE, DUE_DATE from V_AR_OPEN_ITEMS where BATCH_CODE in (11,12, 13, 16) and CUSTOMER = '",V.ODBC.con!rst.FieldValTrim!CUSTOMER,"' and INVOICE = '",V.ODBC.con!rst.FieldValTrim!INVOICE,"'",V.Local.sSql)
+	F.ODBC.Connection!con.OpenLocalRecordsetRO("rstChk",V.Local.sSql)
+	F.Intrinsic.Control.DoUntil(V.ODBC.con!rstChk.EOF,=,True)
+		F.Intrinsic.Math.Add(V.Local.fTotalChk,V.ODBC.con!rstChk.FieldValFloat!AMT_INVOICE,V.Local.fTotalChk)
+		F.ODBC.con!rstChk.MoveNext
+	F.Intrinsic.Control.Loop
+	F.ODBC.con!rstChk.Close
+	F.Intrinsic.Control.If(V.Local.fTotalChk,=,0)
+			F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+				V.uGlobal.uAR.Redim(0,0)
+				V.Local.iUB.Set(0)
+			F.Intrinsic.Control.Else
+				V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+				F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+			V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DUE_DATE)
+			V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set(V.ODBC.con!rst.FieldValTrim!TERMS_CODE)
+			V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!1Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!2Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!3Week.Set(V.ODBC.con!rst.FieldValFloat!AMT_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!4Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!5Week.Set(0)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.Math.Add(V.ODBC.con!rst.FieldValFloat!AMT_TRANS_TOTAL,V.Local.fTotalChk,V.Local.fTotalChk)
+		F.Intrinsic.Control.If(V.Local.fTotalChk,>,0)
+			F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+				V.uGlobal.uAR.Redim(0,0)
+				V.Local.iUB.Set(0)
+			F.Intrinsic.Control.Else
+				V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+				F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+			V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DUE_DATE)
+			V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set(V.ODBC.con!rst.FieldValTrim!TERMS_CODE)
+			V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!1Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!2Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!3Week.Set(V.Local.fTotalChk)
+			V.uGlobal.uAR(V.Local.iUB)!4Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!5Week.Set(0)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+	F.ODBC.con!rst.MoveNext
+F.Intrinsic.Control.Loop
+F.ODBC.con!rst.Close
+'Calculating 4 week invoices
+F.Intrinsic.Date.DateAdd("D",21,V.Ambient.Date,V.Local.dStart)
+F.Intrinsic.Date.DateAdd("D",6,V.Local.dStart,V.Local.dStop)
+
+F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, AMT_TRANS_TOTAL, AMT_INVOICE, DUE_DATE, BATCH_CODE, BATCH_LINE, BATCH_NUM,TERMS_CODE from V_AR_OPEN_ITEMS where BATCH_CODE = 10 and DUE_DATE BETWEEN '",V.Local.dStart.PervasiveDate,"' AND '",V.Local.dStop.PervasiveDate,"'",V.Local.sSql)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSql)
+F.Intrinsic.Control.DoUntil(V.ODBC.con!rst.EOF,=,True)
+	V.Local.fTotalChk.Set(0)
+	F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, AMT_TRANS_TOTAL, AMT_INVOICE, DUE_DATE from V_AR_OPEN_ITEMS where BATCH_CODE in (11,12, 13, 16) and CUSTOMER = '",V.ODBC.con!rst.FieldValTrim!CUSTOMER,"' and INVOICE = '",V.ODBC.con!rst.FieldValTrim!INVOICE,"'",V.Local.sSql)
+	F.ODBC.Connection!con.OpenLocalRecordsetRO("rstChk",V.Local.sSql)
+	F.Intrinsic.Control.DoUntil(V.ODBC.con!rstChk.EOF,=,True)
+		F.Intrinsic.Math.Add(V.Local.fTotalChk,V.ODBC.con!rstChk.FieldValFloat!AMT_INVOICE,V.Local.fTotalChk)
+		F.ODBC.con!rstChk.MoveNext
+	F.Intrinsic.Control.Loop
+	F.ODBC.con!rstChk.Close
+	F.Intrinsic.Control.If(V.Local.fTotalChk,=,0)
+			F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+				V.uGlobal.uAR.Redim(0,0)
+				V.Local.iUB.Set(0)
+			F.Intrinsic.Control.Else
+				V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+				F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+			V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DUE_DATE)
+			V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set(V.ODBC.con!rst.FieldValTrim!TERMS_CODE)
+			V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!1Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!2Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!3Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!4Week.Set(V.ODBC.con!rst.FieldValFloat!AMT_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!5Week.Set(0)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.Math.Add(V.ODBC.con!rst.FieldValFloat!AMT_TRANS_TOTAL,V.Local.fTotalChk,V.Local.fTotalChk)
+		F.Intrinsic.Control.If(V.Local.fTotalChk,>,0)
+			F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+				V.uGlobal.uAR.Redim(0,0)
+				V.Local.iUB.Set(0)
+			F.Intrinsic.Control.Else
+				V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+				F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+			V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DUE_DATE)
+			V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set(V.ODBC.con!rst.FieldValTrim!TERMS_CODE)
+			V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!1Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!2Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!3Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!4Week.Set(V.Local.fTotalChk)
+			V.uGlobal.uAR(V.Local.iUB)!5Week.Set(0)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+	F.ODBC.con!rst.MoveNext
+F.Intrinsic.Control.Loop
+F.ODBC.con!rst.Close
+
+'Calculating 5 week invoices
+F.Intrinsic.Date.DateAdd("D",28,V.Ambient.Date,V.Local.dStart)
+F.Intrinsic.Date.DateAdd("D",6,V.Local.dStart,V.Local.dStop)
+
+F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, AMT_TRANS_TOTAL, AMT_INVOICE, DUE_DATE, BATCH_CODE, BATCH_LINE, BATCH_NUM,TERMS_CODE from V_AR_OPEN_ITEMS where BATCH_CODE = 10 and DUE_DATE BETWEEN '",V.Local.dStart.PervasiveDate,"' AND '",V.Local.dStop.Pervasivedate,"'",V.Local.sSql)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSql)
+F.Intrinsic.Control.DoUntil(V.ODBC.con!rst.EOF,=,True)
+	V.Local.fTotalChk.Set(0)
+	F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, AMT_TRANS_TOTAL, AMT_INVOICE, DUE_DATE from V_AR_OPEN_ITEMS where BATCH_CODE in (11,12, 13, 16) and CUSTOMER = '",V.ODBC.con!rst.FieldValTrim!CUSTOMER,"' and INVOICE = '",V.ODBC.con!rst.FieldValTrim!INVOICE,"'",V.Local.sSql)
+	F.ODBC.Connection!con.OpenLocalRecordsetRO("rstChk",V.Local.sSql)
+	F.Intrinsic.Control.DoUntil(V.ODBC.con!rstChk.EOF,=,True)
+		F.Intrinsic.Math.Add(V.Local.fTotalChk,V.ODBC.con!rstChk.FieldValFloat!AMT_INVOICE,V.Local.fTotalChk)
+		F.ODBC.con!rstChk.MoveNext
+	F.Intrinsic.Control.Loop
+	F.ODBC.con!rstChk.Close
+	F.Intrinsic.Control.If(V.Local.fTotalChk,=,0)
+			F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+				V.uGlobal.uAR.Redim(0,0)
+				V.Local.iUB.Set(0)
+			F.Intrinsic.Control.Else
+				V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+				F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+			V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DUE_DATE)
+			V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set(V.ODBC.con!rst.FieldValTrim!TERMS_CODE)
+			V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!1Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!2Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!3Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!4Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!5Week.Set(V.ODBC.con!rst.FieldValFloat!AMT_INVOICE)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.Math.Add(V.ODBC.con!rst.FieldValFloat!AMT_TRANS_TOTAL,V.Local.fTotalChk,V.Local.fTotalChk)
+		F.Intrinsic.Control.If(V.Local.fTotalChk,>,0)
+			F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+				V.uGlobal.uAR.Redim(0,0)
+				V.Local.iUB.Set(0)
+			F.Intrinsic.Control.Else
+				V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+				F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+			V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DUE_DATE)
+			V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set(V.ODBC.con!rst.FieldValTrim!TERMS_CODE)
+			V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!1Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!2Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!3Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!4Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!5Week.Set(V.Local.fTotalChk)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+	F.ODBC.con!rst.MoveNext
+F.Intrinsic.Control.Loop
+F.ODBC.con!rst.Close
+
+'Calculating Past Due week invoices
+V.Local.dStart.Set(V.Ambient.Date)
+F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, AMT_TRANS_TOTAL, AMT_INVOICE, DUE_DATE, BATCH_CODE, BATCH_LINE, BATCH_NUM, TERMS_CODE from V_AR_OPEN_ITEMS where BATCH_CODE = 10 and DUE_DATE < '",V.Local.dStart.PervasiveDate,"'",V.Local.sSql)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSql)
+F.Intrinsic.Control.DoUntil(V.ODBC.con!rst.EOF,=,True)
+	V.Local.fTotalChk.Set(0)
+	F.Intrinsic.String.Concat("Select CUSTOMER, INVOICE, DATE_INVOICE, AMT_TRANS_TOTAL, AMT_INVOICE, DUE_DATE from V_AR_OPEN_ITEMS where BATCH_CODE in (11,12, 13, 16) and CUSTOMER = '",V.ODBC.con!rst.FieldValTrim!CUSTOMER,"' and INVOICE = '",V.ODBC.con!rst.FieldValTrim!INVOICE,"'",V.Local.sSql)
+	F.ODBC.Connection!con.OpenLocalRecordsetRO("rstChk",V.Local.sSql)
+	F.Intrinsic.Control.DoUntil(V.ODBC.con!rstChk.EOF,=,True)
+		F.Intrinsic.Math.Add(V.Local.fTotalChk,V.ODBC.con!rstChk.FieldValFloat!AMT_INVOICE,V.Local.fTotalChk)
+		F.ODBC.con!rstChk.MoveNext
+	F.Intrinsic.Control.Loop
+	F.ODBC.con!rstChk.Close
+	F.Intrinsic.Control.If(V.Local.fTotalChk,=,0)
+			F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+				V.uGlobal.uAR.Redim(0,0)
+				V.Local.iUB.Set(0)
+			F.Intrinsic.Control.Else
+				V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+				F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+			V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DUE_DATE)
+			V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set(V.ODBC.con!rst.FieldValTrim!TERMS_CODE)
+			V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!1Week.Set(V.ODBC.con!rst.FieldValFloat!AMT_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!2Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!3Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!4Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!5Week.Set(0)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.Math.Add(V.ODBC.con!rst.FieldValFloat!AMT_TRANS_TOTAL,V.Local.fTotalChk,V.Local.fTotalChk)
+		F.Intrinsic.Control.If(V.Local.fTotalChk,>,0)
+			F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,=,-1)
+				V.uGlobal.uAR.Redim(0,0)
+				V.Local.iUB.Set(0)
+			F.Intrinsic.Control.Else
+				V.Local.iUB.Set(V.uGlobal.uAR.UBound)
+				F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+			V.uGlobal.uAR.RedimPreserve(0,V.Local.iUB)
+			V.uGlobal.uAR(V.Local.iUB)!Customer.Set(V.ODBC.con!rst.FieldValTrim!CUSTOMER)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice.Set(V.ODBC.con!rst.FieldValTrim!INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Invoice_Date.Set(V.ODBC.con!rst.FieldVal!DATE_INVOICE)
+			V.uGlobal.uAR(V.Local.iUB)!Due_Date.Set(V.ODBC.con!rst.FieldVal!DUE_DATE)
+			V.uGlobal.uAR(V.Local.iUB)!Terms_Code.Set(V.ODBC.con!rst.FieldValTrim!TERMS_CODE)
+			V.uGlobal.uAR(V.Local.iUB)!Cur_Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!1Week.Set(V.Local.fTotalChk)
+			V.uGlobal.uAR(V.Local.iUB)!2Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!3Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!4Week.Set(0)
+			V.uGlobal.uAR(V.Local.iUB)!5Week.Set(0)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+	F.ODBC.con!rst.MoveNext
+F.Intrinsic.Control.Loop
+F.ODBC.con!rst.Close
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("LoadUDT_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3866_AR_Weekly.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.LoadUDT.End
+
+Program.Sub.LoadRST.Start
+F.Intrinsic.Control.SetErrorHandler("LoadRST_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSql.Declare(String)
+V.Local.i.Declare(Long)
+
+F.Intrinsic.String.Concat("Delete GCG_3866_AR_Weekly where Terminal = '",V.Caller.Terminal,"'",V.Local.sSql)
+F.ODBC.Connection!con.Execute(V.Local.sSql)
+F.Intrinsic.Control.If(V.uGlobal.uAR.UBound,>,-1)
+	V.Local.sSql.Set("Select * From GCG_3866_AR_Weekly")
+	F.ODBC.Connection!con.OpenLocalRecordsetRW("rst",V.Local.sSql)
+	F.Intrinsic.Control.For(V.Local.i,V.uGlobal.uAR.LBound,V.uGlobal.uAR.UBound,1)
+		F.Intrinsic.Control.If(V.uGlobal.uAR(V.Local.i)!Customer,<>,"")
+			F.ODBC.con!rst.AddNew
+			F.ODBC.con!rst.Set!TERMINAL(V.Caller.Terminal)
+			F.ODBC.con!rst.Set!Customer(V.uGlobal.uAR(V.Local.i)!Customer.Trim)
+			F.ODBC.con!rst.Set!Invoice(V.uGlobal.uAR(V.Local.i)!Invoice)
+			F.ODBC.con!rst.Set!Invoice_Date(V.uGlobal.uAR(V.Local.i)!Invoice_Date)
+			F.ODBC.con!rst.Set!Due_Date(V.uGlobal.uAR(V.Local.i)!Due_Date)
+			F.ODBC.con!rst.Set!Terms_Code(V.uGlobal.uAR(V.Local.i)!Terms_Code)
+			F.ODBC.con!rst.Set!Curr_Week(V.uGlobal.uAR(V.Local.i)!Cur_Week)
+			F.ODBC.con!rst.Set!Week_1(V.uGlobal.uAR(V.Local.i)!1Week)
+			F.ODBC.con!rst.Set!Week_2(V.uGlobal.uAR(V.Local.i)!2Week)
+			F.ODBC.con!rst.Set!Week_3(V.uGlobal.uAR(V.Local.i)!3Week)
+			F.ODBC.con!rst.Set!Week_4(V.uGlobal.uAR(V.Local.i)!4Week)
+			F.ODBC.con!rst.Set!Week_5(V.uGlobal.uAR(V.Local.i)!5Week)
+			F.ODBC.con!rst.Update
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.Next(V.Local.i)
+	F.ODBC.con!rst.Close
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("LoadRST_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3866_AR_Weekly.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.LoadRST.End
+
+Program.Sub.CallBI.Start
+F.Intrinsic.Control.SetErrorHandler("CallBI_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sParam.Declare(String)
+V.Local.sParamVal.Declare(String)
+V.Local.sDate.Declare(String)
+V.Local.iBI.Declare(Long)
+F.Intrinsic.UI.CloseWaitDialog
+V.Local.sDate.Set(V.Ambient.Date)
+V.Local.sParam.Set("Terminal*!*DateRan")
+F.Intrinsic.String.Concat(V.Caller.Terminal,"*!*",V.Local.sDate,V.Local.sParamVal)
+F.Intrinsic.String.Split(V.Local.sParam,"*!*",V.Local.sParam)
+F.Intrinsic.String.Split(V.Local.sParamVal,"*!*",V.Local.sParamVal)
+
+F.Global.BI.GetIDFromName("GCG_3866_AR_Weekly.rpt",V.Local.iBI)
+F.Global.BI.PrintReport(V.Local.iBI,0,V.Local.sParam,V.Local.sParamVal,"",False)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("CallBI_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3866_AR_Weekly.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.CallBI.End
+
+Program.Sub.Comments.Start
+${$0$}$GCG_AR_Aging_Weekly$}$SUPERVSR$}$6/27/2012
+Program.Sub.Comments.End
+
